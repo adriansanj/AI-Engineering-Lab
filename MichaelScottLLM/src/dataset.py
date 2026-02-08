@@ -41,7 +41,7 @@ def main():
     print(len(dataset), "conversation pairs created. Pushing to Hugging Face Hub...")
     dataset.push_to_hub(
         "adrianse/the-office-michael-scott-conversations", 
-        token=os.getenv("HUGGING_FACE_TOKEN")
+        token=os.getenv("HUGGING_FACE_HUB_TOKEN")
     )
     print("Dataset pushed to Hugging Face Hub.")
 
