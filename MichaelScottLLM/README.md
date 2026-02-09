@@ -2,7 +2,9 @@
 
 ## Overview
 
-A project exploring language model fine-tuning techniques.
+A project exploring language model fine-tuning techniques. This project fine-tunes a Llama 3.2 1B model to emulate Michael Scott from *The Office*. We build a custom dataset using the [nasirkhalid24/the-office-us-complete-dialogue-transcript](https://www.kaggle.com/datasets/nasirkhalid24/the-office-us-complete-dialogue-transcript) Kaggle dataset and fine-tune the model accordingly.
+
+![image](img/inference_example.png)
 
 **Disclaimer:** Most of the code in this project is copied and refactored from [neural-maze/neural-hub](https://github.com/neural-maze/neural-hub/tree/master/rick-llm). Specifically, the `src/lambda` code and most of the `Makefile` is a direct copy-paste, while the rest has been inspired and refactored to adapt it to a new use case.
 
