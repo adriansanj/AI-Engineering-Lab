@@ -1,0 +1,69 @@
+base_model: NousResearch/Llama-3.2-1B
+model_type: AutoModelForCausalLM
+tokenizer_type: AutoTokenizer
+
+chat_template_jinja: |
+  {{ bos_token }}{% for message in messages %}{% if message['role'] == 'system' %}{{ '<|start_header_id|>system<|end_header_id|>\n\n' + message['content'] + '<|end_of_text|>' }}{% elif message['role'] == 'user' %}{{ '<|start_header_id|>user<|end_header_id|>\n\n' + message['content'] + '<|end_of_text|>' }}{% elif message['role'] == 'assistant' %}{{ '<|start_header_id|>assistant<|end_header_id|>\n\n' + message['content'] + '<|end_of_text|>' }}{% endif %}{% endfor %}{% if add_generation_prompt %}{{ '<|start_header_id|>assistant<|end_header_id|>\n\n' }}{% endif %}
+  
+special_tokens:
+  pad_token: "<|end_of_text|>"
+
+# Dataset
+datasets:
+  - path: adrianse/the-office-michael-scott-conversations
+    type: chat_template
+    field_messages: messages
+    message_property_mappings:
+      role: role
+      content: content
+    roles:
+      system:
+        - system
+      user:
+        - user
+      assistant:
+        - assistant
+
+# Output
+output_dir: ./outputs/michael-scott-llama-3.2-1b
+
+# HuggingFace Hub (optional)
+hub_model_id: adrianse/michael-scott-llama-3.2-1b
+hub_strategy: end
+hf_use_auth_token: true
+
+# LoRA configuration
+adapter: lora
+lora_r: 16
+lora_alpha: 32
+lora_dropout: 0.05
+lora_target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj
+  - gate_proj
+  - up_proj
+  - down_proj
+
+# Sequence settings
+sequence_len: 1024
+sample_packing: false
+
+# Training settings (optimized for A100)
+micro_batch_size: 32
+gradient_accumulation_steps: 1
+num_epochs: 5
+learning_rate: 0.0003
+lr_scheduler: cosine
+warmup_ratio: 0.1
+
+# Optimization (optimized for A100)
+gradient_checkpointing: true
+bf16: auto
+tf32: true
+
+# Logging (minimal)
+logging_steps: 100
+saves_per_epoch: 1
+save_total_limit: 2
