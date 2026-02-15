@@ -34,29 +34,43 @@ lambda-setup:
 
 	./myenv/bin/python3.11 -m pip install --upgrade pip setuptools wheel packaging
 
-# 	python3.11 -m pip install torch==2.2.2+cu121 --index-url https://download.pytorch.org/whl/cu121
-# 	python3.11 -m pip install torchvision==0.17.2 --index-url https://download.pytorch.org/whl/cu121
-#	python3.11 -m pip install torchaudio==2.2.2 --index-url https://download.pytorch.org/whl/cu121
 	./myenv/bin/python3.11 -m pip install torch==2.8.0+cu128 \
 		torchvision==0.23.0+cu128 \
 		torchaudio==2.8.0+cu128 \
 		--index-url https://download.pytorch.org/whl/cu128
 
 	./myenv/bin/python3.11 -m pip install axolotl==0.14.0
-#	./myenv/bin/python3.11 -m pip install flash-attn==2.6.3 --no-build-isolation
 	./myenv/bin/python3.11 -m pip install deepspeed
-
-# 	python3.11 -c "import torch; print('Torch CUDA available:', torch.cuda.is_available())"
-# 	python3.11 -c "import axolotl; print('Axolotl version:', axolotl.__version__)"
-# 	python3.11 -c "import flash_attn; print('Flash-Attn imported successfully')"
 
 finetune-example:
 	echo "Finetuning Michael LLM"
-	bash -c "source myenv/bin/activate && export AXOLOTL_DO_NOT_TRACK=1 && axolotl train src/lora-1b.yml"
+	bsource myenv/bin/activate && \
+	export AXOLOTL_DO_NOT_TRACK=1 && \
+	axolotl train src/lora-1b.yml
 
 finetune:
 	echo "Finetuning Michael LLM"
-	bash -c "source myenv/bin/activate && export AXOLOTL_DO_NOT_TRACK=1 && axolotl train src/michael_finetune.yaml"
+	source myenv/bin/activate && \
+	export AXOLOTL_DO_NOT_TRACK=1 && \
+	axolotl train src/michael_finetune.yaml && \
+	axolotl merge-lora src/michael_finetune.yaml --lora-model-dir ./outputs/michael-scott-llama-3.2-1b && \
+	sed -i 's/"tokenizer_class": "TokenizersBackend"/"tokenizer_class": "PreTrainedTokenizerFast"/' ./outputs/michael-scott-llama-3.2-1b/merged/tokenizer_config.json
+
+create-hf-gguf-model:
+	@export HUGGING_FACE_HUB_TOKEN=$$(grep HUGGING_FACE_HUB_TOKEN .env | cut -d'=' -f2 | tr -d '"') && \
+	pip install --upgrade transformers && \
+	if [ ! -d "llama.cpp" ]; then \
+		echo "Cloning llama.cpp..."; \
+		git clone https://github.com/ggerganov/llama.cpp; \
+	else \
+		echo "llama.cpp already exists, skipping clone"; \
+	fi && \
+	pip install -r llama.cpp/requirements.txt && \
+	python llama.cpp/convert_hf_to_gguf.py \
+		./outputs/michael-scott-llama-3.2-1b/merged \
+		--outfile model-fp16.gguf \
+		--outtype f16 && \
+	huggingface-cli upload adrianse/michael-scott-llama-3.2-1b-GGUF model-fp16.gguf model-fp16.gguf
 
 inference:
 	echo "Running inference"
@@ -65,6 +79,42 @@ inference:
 terminate-instance:
 	python3 src/lambda/commands.py terminate
 
-# download-model:
-# 	echo "Downloading model files"
-# 	python3 src/download_model.py
+ollama-setup:
+	@echo "Setting up Ollama..."
+	@if ! command -v ollama >/dev/null 2>&1; then \
+		echo "→ Ollama not found, installing..."; \
+		curl -fsSL https://ollama.com/install.sh | sh; \
+		echo "✓ Ollama installed"; \
+	else \
+		echo "✓ Ollama already installed"; \
+	fi
+	@if [ ! -f /etc/systemd/system/ollama.service.d/override.conf ] || \
+	   ! grep -q "OLLAMA_HOST=0.0.0.0:11434" /etc/systemd/system/ollama.service.d/override.conf 2>/dev/null; then \
+		echo "→ Configuration needs update..."; \
+		sudo mkdir -p /etc/systemd/system/ollama.service.d; \
+		echo "[Service]" | sudo tee /etc/systemd/system/ollama.service.d/override.conf > /dev/null; \
+		echo "Environment=\"OLLAMA_HOST=0.0.0.0:11434\"" | sudo tee -a /etc/systemd/system/ollama.service.d/override.conf > /dev/null; \
+		sudo systemctl daemon-reload; \
+		echo "✓ Configuration updated"; \
+	else \
+		echo "✓ Configuration already correct"; \
+	fi
+	@echo "→ Ensuring Ollama is running..."
+	@sudo systemctl enable ollama 2>/dev/null || true
+	@sudo systemctl is-active --quiet ollama && sudo systemctl restart ollama || sudo systemctl start ollama
+	@sleep 2
+	@curl -s http://localhost:11434/api/tags > /dev/null && \
+		echo "✓ Ollama is running and accessible on 0.0.0.0:11434" || \
+		echo "✗ Ollama failed to start"
+
+ollama-create-model:
+	@echo "Creating model 'michael-scott' from src/Modelfile..."
+	@ollama create michael-scott -f src/Modelfile && \
+		echo "✓ Model 'michael-scott' created successfully" || \
+		echo "✗ Failed to create model"
+	
+start-web-ui:
+	docker compose up -d
+
+stop-web-ui:
+	docker compose down

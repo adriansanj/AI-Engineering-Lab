@@ -27,7 +27,7 @@ datasets:
 # Output
 output_dir: ./outputs/michael-scott-llama-3.2-1b
 
-# HuggingFace Hub (optional)
+# HuggingFace Hub
 hub_model_id: adrianse/michael-scott-llama-3.2-1b
 hub_strategy: end
 hf_use_auth_token: true
@@ -50,7 +50,7 @@ lora_target_modules:
 sequence_len: 1024
 sample_packing: false
 
-# Training settings (optimized for A100)
+# Training settings
 micro_batch_size: 32
 gradient_accumulation_steps: 1
 num_epochs: 5
@@ -58,12 +58,12 @@ learning_rate: 0.0003
 lr_scheduler: cosine
 warmup_ratio: 0.1
 
-# Optimization (optimized for A100)
+# Optimization
 gradient_checkpointing: true
 bf16: auto
 tf32: true
 
-# Logging (minimal)
-logging_steps: 100
+# Logging
+logging_steps: 50
 saves_per_epoch: 1
 save_total_limit: 2
